@@ -110,6 +110,25 @@ export default function SimpleVoiceEmotionScreen() {
             </View>
           )}
         </View>
+
+         {/* Movie Recommendations Section */}
+         <View style={styles.recommendationContainer}>
+          <Text style={styles.sectionTitle}>Movie Recommendations</Text>
+          
+          {predictedEmotion ? (
+            <View style={styles.recommendationContent}>
+              <Text style={styles.recommendationText}>
+                Music recommendations will appear here based on your emotion.
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.placeholderContainer}>
+              <Text style={styles.placeholderText}>
+                Waiting for emotion prediction...
+              </Text>
+            </View>
+          )}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );

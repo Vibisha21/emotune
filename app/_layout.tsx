@@ -17,7 +17,8 @@ export default function RootLayout() {
         setIsAuthenticated(auth);
 
         if (!auth) {
-          router.replace('/login'); // redirect only AFTER layout is mounted
+          router.replace('/');
+ // redirect only AFTER layout is mounted
         }
       } catch (e) {
         console.warn(e);
