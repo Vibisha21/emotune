@@ -10,41 +10,66 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
-import { useRouter } from 'expo-router'; // 👈 added for navigation
+import { useRouter } from 'expo-router';
+import { auth } from '../firebaseConfig';
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  sendPasswordResetEmail,
+} from 'firebase/auth';
 
 export default function AuthScreen() {
   const [isLogin, setIsLogin] = useState(true);
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const router = useRouter(); // 👈 initialize router
+  const router = useRouter();
 
-  const handleAuth = () => {
+  const handleAuth = async () => {
     if (isLogin) {
-      console.log('Login with:', { email, password });
-      // Dummy login check — you can replace this with your backend call
-      if (email && password) {
-        router.replace('/(tabs)/home'); // 👈 navigate to Home on successful login
-      } else {
-        alert('Please enter email and password.');
+      // Login
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+        alert('Login Successful!');
+        router.replace('/(tabs)/home');
+      }  catch (error) {
+        if (error instanceof Error) {
+          console.error(error.message);
+        } else {
+          console.error("An unknown error occurred");
+        }
       }
     } else {
-      console.log('Signup with:', { username, email, password });
-      // Dummy signup success
-      if (username && email && password) {
+      // Sign Up
+      try {
+        await createUserWithEmailAndPassword(auth, email, password);
         alert('Account created successfully! You can now log in.');
         setIsLogin(true);
-      } else {
-        alert('Please fill all fields.');
+      }  catch (error) {
+        if (error instanceof Error) {
+          console.error(error.message);
+        } else {
+          console.error("An unknown error occurred");
+        }
       }
     }
   };
 
-  const toggleAuthMode = () => {
-    setIsLogin(!isLogin);
-    setUsername('');
-    setEmail('');
-    setPassword('');
+  const handleForgotPassword = async () => {
+    if (!email) {
+      alert('Enter your email to reset password.');
+      return;
+    }
+    try {
+      await sendPasswordResetEmail(auth, email);
+      alert('Password reset email sent! Check your inbox.');
+    }  catch (error) {
+      if (error instanceof Error) {
+        console.error(error.message);
+      } else {
+        console.error("An unknown error occurred");
+      }
+    }
   };
 
   return (
@@ -100,7 +125,7 @@ export default function AuthScreen() {
             </View>
 
             {isLogin && (
-              <TouchableOpacity style={styles.forgotPassword}>
+              <TouchableOpacity style={styles.forgotPassword} onPress={handleForgotPassword}>
                 <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
               </TouchableOpacity>
             )}
@@ -117,7 +142,7 @@ export default function AuthScreen() {
               <View style={styles.dividerLine} />
             </View>
 
-            <TouchableOpacity style={styles.toggleButton} onPress={toggleAuthMode}>
+            <TouchableOpacity style={styles.toggleButton} onPress={() => setIsLogin(!isLogin)}>
               <Text style={styles.toggleButtonText}>
                 {isLogin ? 'Need an account? ' : 'Already have an account? '}
                 <Text style={styles.toggleButtonHighlight}>
@@ -133,114 +158,32 @@ export default function AuthScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#E6E6FA',
-  },
-  keyboardAvoid: {
-    flex: 1,
-  },
-  scrollContainer: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    padding: 20,
-  },
+  container: { flex: 1, backgroundColor: '#E6E6FA' },
+  keyboardAvoid: { flex: 1 },
+  scrollContainer: { flexGrow: 1, justifyContent: 'center', padding: 20 },
   formContainer: {
     backgroundColor: 'white',
     borderRadius: 20,
     padding: 25,
     shadowColor: '#8A2BE2',
-    shadowOffset: {
-      width: 0,
-      height: 5,
-    },
+    shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 10,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#4B0082',
-    marginBottom: 10,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#9370DB',
-    marginBottom: 25,
-    textAlign: 'center',
-  },
-  inputContainer: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 16,
-    marginBottom: 8,
-    color: '#4B0082',
-    fontWeight: '500',
-  },
-  input: {
-    borderWidth: 1.5,
-    borderColor: '#D8BFD8',
-    borderRadius: 12,
-    padding: 15,
-    fontSize: 16,
-    backgroundColor: '#FFFFFF',
-    color: '#4B0082',
-  },
-  forgotPassword: {
-    alignSelf: 'flex-end',
-    marginBottom: 20,
-  },
-  forgotPasswordText: {
-    color: '#9370DB',
-    fontSize: 14,
-  },
-  authButton: {
-    borderRadius: 12,
-    marginTop: 10,
-    padding: 15,
-    alignItems: 'center',
-    backgroundColor: '#8A2BE2',
-    elevation: 5,
-    shadowColor: '#8A2BE2',
-    shadowOffset: {
-      width: 0,
-      height: 3,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-  },
-  authButtonText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 25,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#D8BFD8',
-  },
-  dividerText: {
-    color: '#9370DB',
-    paddingHorizontal: 15,
-    fontSize: 14,
-  },
-  toggleButton: {
-    alignItems: 'center',
-  },
-  toggleButtonText: {
-    color: '#696969',
-    fontSize: 16,
-  },
-  toggleButtonHighlight: {
-    color: '#8A2BE2',
-    fontWeight: 'bold',
-  },
+  title: { fontSize: 28, fontWeight: 'bold', color: '#4B0082', marginBottom: 10, textAlign: 'center' },
+  subtitle: { fontSize: 16, color: '#9370DB', marginBottom: 25, textAlign: 'center' },
+  inputContainer: { marginBottom: 20 },
+  label: { fontSize: 16, marginBottom: 8, color: '#4B0082', fontWeight: '500' },
+  input: { borderWidth: 1.5, borderColor: '#D8BFD8', borderRadius: 12, padding: 15, fontSize: 16, backgroundColor: '#FFFFFF', color: '#4B0082' },
+  forgotPassword: { alignSelf: 'flex-end', marginBottom: 20 },
+  forgotPasswordText: { color: '#9370DB', fontSize: 14 },
+  authButton: { borderRadius: 12, marginTop: 10, padding: 15, alignItems: 'center', backgroundColor: '#8A2BE2', elevation: 5 },
+  authButtonText: { color: 'white', fontSize: 18, fontWeight: 'bold' },
+  divider: { flexDirection: 'row', alignItems: 'center', marginVertical: 25 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: '#D8BFD8' },
+  dividerText: { color: '#9370DB', paddingHorizontal: 15, fontSize: 14 },
+  toggleButton: { alignItems: 'center' },
+  toggleButtonText: { color: '#696969', fontSize: 16 },
+  toggleButtonHighlight: { color: '#8A2BE2', fontWeight: 'bold' },
 });
