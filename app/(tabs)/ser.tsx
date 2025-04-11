@@ -1,60 +1,101 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
-  StyleSheet,
-  Text,
-  View,
-  TouchableOpacity,
-  SafeAreaView,
-  ScrollView,
-  ActivityIndicator,
+  StyleSheet, Text, View, TouchableOpacity, SafeAreaView,
+  ScrollView, ActivityIndicator
 } from 'react-native';
+import { Audio } from 'expo-av';
+import axios from 'axios';
+import { Linking } from 'react-native';
 
 export default function SimpleVoiceEmotionScreen() {
   const [isRecording, setIsRecording] = useState(false);
   const [isPredicting, setIsPredicting] = useState(false);
   const [predictedEmotion, setPredictedEmotion] = useState<string | null>(null);
+  const [recommendations, setRecommendations] = useState<any>(null);
+  const recordingRef = useRef<Audio.Recording | null>(null);
 
-  const startRecording = () => {
-    // In a real app, implement actual recording logic here
-    setIsRecording(true);
-    setPredictedEmotion(null);
+  const startRecording = async () => {
+    try {
+      setPredictedEmotion(null);
+      setRecommendations(null);
+      const permission = await Audio.requestPermissionsAsync();
+      if (!permission.granted) {
+        alert('Permission to access microphone is required!');
+        return;
+      }
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
+      const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+      recordingRef.current = recording;
+      setIsRecording(true);
+    } catch (err) {
+      console.error('Recording error:', err);
+    }
   };
 
-  const stopRecording = () => {
-    setIsRecording(false);
-    setIsPredicting(true);
-    
-    // Simulate emotion prediction (replace with actual API call)
-    setTimeout(() => {
-      const emotions = ['Happy', 'Sad', 'Angry', 'Excited', 'Calm', 'Anxious'];
-      const randomEmotion = emotions[Math.floor(Math.random() * emotions.length)];
-      setPredictedEmotion(randomEmotion);
+  const stopRecording = async () => {
+    try {
+      setIsRecording(false);
+      setIsPredicting(true);
+      const recording = recordingRef.current;
+      if (!recording) return;
+
+      await recording.stopAndUnloadAsync();
+      const uri = recording.getURI();
+      if (!uri) return;
+
+      const formData = new FormData();
+      formData.append('file', {
+        uri,
+        name: 'audio.wav',
+        type: 'audio/wav',
+      } as any);
+
+      const response = await axios.post('http://192.168.1.15:5000/predict', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      setPredictedEmotion(response.data.emotion);
+      setRecommendations(response.data.recommendations);
+    } catch (err) {
+      console.error('Prediction error:', err);
+      alert('Something went wrong while processing the audio.');
+    } finally {
       setIsPredicting(false);
-    }, 1500);
+    }
   };
+
+const renderList = (items: string[]) => (
+  items.map((item, index) => (
+    <TouchableOpacity
+      key={index}
+      style={styles.recommendationItem}
+      onPress={() => Linking.openURL(`https://www.google.com/search?q=${encodeURIComponent(item)}`)}
+    >
+      <Text style={styles.recommendationLink}>• {item}</Text>
+    </TouchableOpacity>
+  ))
+);
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <Text style={styles.headerTitle}>Voice Emotion Detector</Text>
-        
-        {/* Simple Recorder Section */}
+
+        {/* Recorder */}
         <View style={styles.recorderContainer}>
-          <TouchableOpacity 
-            style={[styles.recordButton, isRecording && styles.recordingButton]} 
-            onPress={isRecording ? stopRecording : startRecording}
-          >
+          <TouchableOpacity
+            style={[styles.recordButton, isRecording && styles.recordingButton]}
+            onPress={isRecording ? stopRecording : startRecording}>
             <View style={[styles.recordButtonInner, isRecording && styles.stopButtonInner]} />
           </TouchableOpacity>
           <Text style={styles.buttonLabel}>
             {isRecording ? 'Stop Recording' : 'Start Recording'}
           </Text>
         </View>
-        
-        {/* Emotion Prediction Section */}
+
+        {/* Emotion */}
         <View style={styles.emotionContainer}>
           <Text style={styles.sectionTitle}>Predicted Emotion</Text>
-          
           {isPredicting ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color="#8A2BE2" />
@@ -66,66 +107,49 @@ export default function SimpleVoiceEmotionScreen() {
             </View>
           ) : (
             <View style={styles.placeholderContainer}>
-              <Text style={styles.placeholderText}>
-                Record your voice to predict emotion
-              </Text>
-            </View>
-          )}
-        </View>
-        
-        {/* Book Recommendations Section */}
-        <View style={styles.recommendationContainer}>
-          <Text style={styles.sectionTitle}>Book Recommendations</Text>
-          
-          {predictedEmotion ? (
-            <View style={styles.recommendationContent}>
-              <Text style={styles.recommendationText}>
-                Book recommendations will appear here based on your emotion.
-              </Text>
-            </View>
-          ) : (
-            <View style={styles.placeholderContainer}>
-              <Text style={styles.placeholderText}>
-                Waiting for emotion prediction...
-              </Text>
-            </View>
-          )}
-        </View>
-        
-        {/* Music Recommendations Section */}
-        <View style={styles.recommendationContainer}>
-          <Text style={styles.sectionTitle}>Music Recommendations</Text>
-          
-          {predictedEmotion ? (
-            <View style={styles.recommendationContent}>
-              <Text style={styles.recommendationText}>
-                Music recommendations will appear here based on your emotion.
-              </Text>
-            </View>
-          ) : (
-            <View style={styles.placeholderContainer}>
-              <Text style={styles.placeholderText}>
-                Waiting for emotion prediction...
-              </Text>
+              <Text style={styles.placeholderText}>Record your voice to predict emotion</Text>
             </View>
           )}
         </View>
 
-         {/* Movie Recommendations Section */}
-         <View style={styles.recommendationContainer}>
-          <Text style={styles.sectionTitle}>Movie Recommendations</Text>
-          
-          {predictedEmotion ? (
+        {/* Book Recommendations */}
+        <View style={styles.recommendationContainer}>
+          <Text style={styles.sectionTitle}>Book Recommendations</Text>
+          {recommendations?.books ? (
             <View style={styles.recommendationContent}>
-              <Text style={styles.recommendationText}>
-                Music recommendations will appear here based on your emotion.
-              </Text>
+              {renderList(recommendations.books)}
             </View>
           ) : (
             <View style={styles.placeholderContainer}>
-              <Text style={styles.placeholderText}>
-                Waiting for emotion prediction...
-              </Text>
+              <Text style={styles.placeholderText}>Waiting for emotion prediction...</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Music Recommendations */}
+        <View style={styles.recommendationContainer}>
+          <Text style={styles.sectionTitle}>Music Recommendations</Text>
+          {recommendations?.music ? (
+            <View style={styles.recommendationContent}>
+              {renderList(recommendations.music)}
+            </View>
+          ) : (
+            <View style={styles.placeholderContainer}>
+              <Text style={styles.placeholderText}>Waiting for emotion prediction...</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Movie Recommendations */}
+        <View style={styles.recommendationContainer}>
+          <Text style={styles.sectionTitle}>Movie Recommendations</Text>
+          {recommendations?.movies ? (
+            <View style={styles.recommendationContent}>
+              {renderList(recommendations.movies)}
+            </View>
+          ) : (
+            <View style={styles.placeholderContainer}>
+              <Text style={styles.placeholderText}>Waiting for emotion prediction...</Text>
             </View>
           )}
         </View>
@@ -133,6 +157,9 @@ export default function SimpleVoiceEmotionScreen() {
     </SafeAreaView>
   );
 }
+
+
+
 
 const styles = StyleSheet.create({
   container: {
@@ -284,4 +311,22 @@ const styles = StyleSheet.create({
     color: '#696969', // Dim gray
     textAlign: 'center',
   },
+  recommendationItem: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#EEE6FA',
+    borderRadius: 8,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#D8BFD8',
+    elevation: 2,
+  },
+  
+  recommendationLink: {
+    fontSize: 16,
+    color: '#4B0082',
+    textDecorationLine: 'underline',
+    textAlign: 'center',
+  },
+  
 });
