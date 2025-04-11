@@ -1,11 +1,10 @@
 import React, { useState, useRef } from 'react';
 import {
   StyleSheet, Text, View, TouchableOpacity, SafeAreaView,
-  ScrollView, ActivityIndicator
+  ScrollView, ActivityIndicator, Linking
 } from 'react-native';
 import { Audio } from 'expo-av';
 import axios from 'axios';
-import { Linking } from 'react-native';
 
 export default function SimpleVoiceEmotionScreen() {
   const [isRecording, setIsRecording] = useState(false);
@@ -43,19 +42,19 @@ export default function SimpleVoiceEmotionScreen() {
       const uri = recording.getURI();
       if (!uri) return;
 
-      const formData = new FormData();
-      formData.append('file', {
-        uri,
-        name: 'audio.wav',
-        type: 'audio/wav',
-      } as any);
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      const audioFile = new File([blob], 'audio.wav', { type: 'audio/wav' });
 
-      const response = await axios.post('http://192.168.1.15:5000/predict', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+      const formData = new FormData();
+      formData.append('file', audioFile);
+
+      const result = await axios.post('https://emotune-be.onrender.com/predict', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
 
-      setPredictedEmotion(response.data.emotion);
-      setRecommendations(response.data.recommendations);
+      setPredictedEmotion(result.data.emotion);
+      setRecommendations(result.data.recommendations);
     } catch (err) {
       console.error('Prediction error:', err);
       alert('Something went wrong while processing the audio.');
@@ -64,17 +63,17 @@ export default function SimpleVoiceEmotionScreen() {
     }
   };
 
-const renderList = (items: string[]) => (
-  items.map((item, index) => (
-    <TouchableOpacity
-      key={index}
-      style={styles.recommendationItem}
-      onPress={() => Linking.openURL(`https://www.google.com/search?q=${encodeURIComponent(item)}`)}
-    >
-      <Text style={styles.recommendationLink}>• {item}</Text>
-    </TouchableOpacity>
-  ))
-);
+  const renderRecommendationList = (items: { title: string, link: string }[]) => (
+    items.map((item, index) => (
+      <TouchableOpacity
+        key={index}
+        style={styles.recommendationItem}
+        onPress={() => Linking.openURL(item.link)}
+      >
+        <Text style={styles.recommendationLink}>• {item.title}</Text>
+      </TouchableOpacity>
+    ))
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -93,7 +92,7 @@ const renderList = (items: string[]) => (
           </Text>
         </View>
 
-        {/* Emotion */}
+        {/* Emotion Result */}
         <View style={styles.emotionContainer}>
           <Text style={styles.sectionTitle}>Predicted Emotion</Text>
           {isPredicting ? (
@@ -117,7 +116,7 @@ const renderList = (items: string[]) => (
           <Text style={styles.sectionTitle}>Book Recommendations</Text>
           {recommendations?.books ? (
             <View style={styles.recommendationContent}>
-              {renderList(recommendations.books)}
+              {renderRecommendationList(recommendations.books)}
             </View>
           ) : (
             <View style={styles.placeholderContainer}>
@@ -131,7 +130,7 @@ const renderList = (items: string[]) => (
           <Text style={styles.sectionTitle}>Music Recommendations</Text>
           {recommendations?.music ? (
             <View style={styles.recommendationContent}>
-              {renderList(recommendations.music)}
+              {renderRecommendationList(recommendations.music)}
             </View>
           ) : (
             <View style={styles.placeholderContainer}>
@@ -145,7 +144,7 @@ const renderList = (items: string[]) => (
           <Text style={styles.sectionTitle}>Movie Recommendations</Text>
           {recommendations?.movies ? (
             <View style={styles.recommendationContent}>
-              {renderList(recommendations.movies)}
+              {renderRecommendationList(recommendations.movies)}
             </View>
           ) : (
             <View style={styles.placeholderContainer}>
@@ -159,12 +158,10 @@ const renderList = (items: string[]) => (
 }
 
 
-
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#E6E6FA', // Light lavender background
+    backgroundColor: '#E6E6FA',
   },
   scrollContainer: {
     flexGrow: 1,
@@ -173,7 +170,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#4B0082', // Indigo
+    color: '#4B0082',
     textAlign: 'center',
     marginBottom: 20,
     marginTop: 30,
@@ -185,10 +182,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
     shadowColor: '#8A2BE2',
-    shadowOffset: {
-      width: 0,
-      height: 3,
-    },
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.2,
     shadowRadius: 5,
     elevation: 5,
@@ -201,33 +195,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 3,
-    borderColor: '#8A2BE2', // Blue violet
-    shadowColor: '#8A2BE2',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 3,
+    borderColor: '#8A2BE2',
   },
   recordingButton: {
-    borderColor: '#FF0000', // Red border when recording
+    borderColor: '#FF0000',
   },
   recordButtonInner: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#8A2BE2', // Blue violet
+    backgroundColor: '#8A2BE2',
   },
   stopButtonInner: {
     borderRadius: 5,
-    backgroundColor: '#FF0000', // Red when recording
+    backgroundColor: '#FF0000',
   },
   buttonLabel: {
     marginTop: 10,
     fontSize: 16,
-    color: '#4B0082', // Indigo
+    color: '#4B0082',
   },
   emotionContainer: {
     backgroundColor: 'white',
@@ -235,10 +221,7 @@ const styles = StyleSheet.create({
     padding: 20,
     marginBottom: 20,
     shadowColor: '#8A2BE2',
-    shadowOffset: {
-      width: 0,
-      height: 3,
-    },
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.2,
     shadowRadius: 5,
     elevation: 5,
@@ -249,10 +232,7 @@ const styles = StyleSheet.create({
     padding: 20,
     marginBottom: 20,
     shadowColor: '#8A2BE2',
-    shadowOffset: {
-      width: 0,
-      height: 3,
-    },
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.2,
     shadowRadius: 5,
     elevation: 5,
@@ -260,7 +240,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#4B0082', // Indigo
+    color: '#4B0082',
     marginBottom: 15,
   },
   loadingContainer: {
@@ -269,47 +249,42 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 10,
-    color: '#9370DB', // Medium purple
+    color: '#9370DB',
     fontSize: 16,
   },
   emotionResultContainer: {
     alignItems: 'center',
     padding: 20,
-    backgroundColor: '#F8F8FF', // Ghost white
+    backgroundColor: '#F8F8FF',
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#D8BFD8', // Thistle (light purple)
+    borderColor: '#D8BFD8',
   },
   emotionResult: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#8A2BE2', // Blue violet
+    color: '#8A2BE2',
   },
   placeholderContainer: {
     alignItems: 'center',
     padding: 20,
-    backgroundColor: '#F8F8FF', // Ghost white
+    backgroundColor: '#F8F8FF',
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#D8BFD8', // Thistle (light purple)
+    borderColor: '#D8BFD8',
     borderStyle: 'dashed',
   },
   placeholderText: {
     fontSize: 16,
-    color: '#9370DB', // Medium purple
+    color: '#9370DB',
     textAlign: 'center',
   },
   recommendationContent: {
     padding: 15,
-    backgroundColor: '#F8F8FF', // Ghost white
+    backgroundColor: '#F8F8FF',
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#D8BFD8', // Thistle (light purple)
-  },
-  recommendationText: {
-    fontSize: 16,
-    color: '#696969', // Dim gray
-    textAlign: 'center',
+    borderColor: '#D8BFD8',
   },
   recommendationItem: {
     paddingVertical: 8,
@@ -321,12 +296,10 @@ const styles = StyleSheet.create({
     borderColor: '#D8BFD8',
     elevation: 2,
   },
-  
   recommendationLink: {
     fontSize: 16,
     color: '#4B0082',
     textDecorationLine: 'underline',
     textAlign: 'center',
   },
-  
 });
