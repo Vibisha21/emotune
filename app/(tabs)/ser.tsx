@@ -1,60 +1,100 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
-  StyleSheet,
-  Text,
-  View,
-  TouchableOpacity,
-  SafeAreaView,
-  ScrollView,
-  ActivityIndicator,
+  StyleSheet, Text, View, TouchableOpacity, SafeAreaView,
+  ScrollView, ActivityIndicator, Linking
 } from 'react-native';
+import { Audio } from 'expo-av';
+import axios from 'axios';
 
 export default function SimpleVoiceEmotionScreen() {
   const [isRecording, setIsRecording] = useState(false);
   const [isPredicting, setIsPredicting] = useState(false);
   const [predictedEmotion, setPredictedEmotion] = useState<string | null>(null);
+  const [recommendations, setRecommendations] = useState<any>(null);
+  const recordingRef = useRef<Audio.Recording | null>(null);
 
-  const startRecording = () => {
-    // In a real app, implement actual recording logic here
-    setIsRecording(true);
-    setPredictedEmotion(null);
+  const startRecording = async () => {
+    try {
+      setPredictedEmotion(null);
+      setRecommendations(null);
+      const permission = await Audio.requestPermissionsAsync();
+      if (!permission.granted) {
+        alert('Permission to access microphone is required!');
+        return;
+      }
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
+      const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+      recordingRef.current = recording;
+      setIsRecording(true);
+    } catch (err) {
+      console.error('Recording error:', err);
+    }
   };
 
-  const stopRecording = () => {
-    setIsRecording(false);
-    setIsPredicting(true);
-    
-    // Simulate emotion prediction (replace with actual API call)
-    setTimeout(() => {
-      const emotions = ['Happy', 'Sad', 'Angry', 'Excited', 'Calm', 'Anxious'];
-      const randomEmotion = emotions[Math.floor(Math.random() * emotions.length)];
-      setPredictedEmotion(randomEmotion);
+  const stopRecording = async () => {
+    try {
+      setIsRecording(false);
+      setIsPredicting(true);
+      const recording = recordingRef.current;
+      if (!recording) return;
+
+      await recording.stopAndUnloadAsync();
+      const uri = recording.getURI();
+      if (!uri) return;
+
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      const audioFile = new File([blob], 'audio.wav', { type: 'audio/wav' });
+
+      const formData = new FormData();
+      formData.append('file', audioFile);
+
+      const result = await axios.post('https://emotune-be.onrender.com/predict', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      setPredictedEmotion(result.data.emotion);
+      setRecommendations(result.data.recommendations);
+    } catch (err) {
+      console.error('Prediction error:', err);
+      alert('srry tryagain');
+    } finally {
       setIsPredicting(false);
-    }, 1500);
+    }
   };
+
+  const renderRecommendationList = (items: { title: string, link: string }[]) => (
+    items.map((item, index) => (
+      <TouchableOpacity
+        key={index}
+        style={styles.recommendationItem}
+        onPress={() => Linking.openURL(item.link)}
+      >
+        <Text style={styles.recommendationLink}>• {item.title}</Text>
+      </TouchableOpacity>
+    ))
+  );
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <Text style={styles.headerTitle}>Voice Emotion Detector</Text>
-        
-        {/* Simple Recorder Section */}
+
+        {/* Recorder */}
         <View style={styles.recorderContainer}>
-          <TouchableOpacity 
-            style={[styles.recordButton, isRecording && styles.recordingButton]} 
-            onPress={isRecording ? stopRecording : startRecording}
-          >
+          <TouchableOpacity
+            style={[styles.recordButton, isRecording && styles.recordingButton]}
+            onPress={isRecording ? stopRecording : startRecording}>
             <View style={[styles.recordButtonInner, isRecording && styles.stopButtonInner]} />
           </TouchableOpacity>
           <Text style={styles.buttonLabel}>
             {isRecording ? 'Stop Recording' : 'Start Recording'}
           </Text>
         </View>
-        
-        {/* Emotion Prediction Section */}
+
+        {/* Emotion Result */}
         <View style={styles.emotionContainer}>
           <Text style={styles.sectionTitle}>Predicted Emotion</Text>
-          
           {isPredicting ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color="#8A2BE2" />
@@ -66,66 +106,49 @@ export default function SimpleVoiceEmotionScreen() {
             </View>
           ) : (
             <View style={styles.placeholderContainer}>
-              <Text style={styles.placeholderText}>
-                Record your voice to predict emotion
-              </Text>
-            </View>
-          )}
-        </View>
-        
-        {/* Book Recommendations Section */}
-        <View style={styles.recommendationContainer}>
-          <Text style={styles.sectionTitle}>Book Recommendations</Text>
-          
-          {predictedEmotion ? (
-            <View style={styles.recommendationContent}>
-              <Text style={styles.recommendationText}>
-                Book recommendations will appear here based on your emotion.
-              </Text>
-            </View>
-          ) : (
-            <View style={styles.placeholderContainer}>
-              <Text style={styles.placeholderText}>
-                Waiting for emotion prediction...
-              </Text>
-            </View>
-          )}
-        </View>
-        
-        {/* Music Recommendations Section */}
-        <View style={styles.recommendationContainer}>
-          <Text style={styles.sectionTitle}>Music Recommendations</Text>
-          
-          {predictedEmotion ? (
-            <View style={styles.recommendationContent}>
-              <Text style={styles.recommendationText}>
-                Music recommendations will appear here based on your emotion.
-              </Text>
-            </View>
-          ) : (
-            <View style={styles.placeholderContainer}>
-              <Text style={styles.placeholderText}>
-                Waiting for emotion prediction...
-              </Text>
+              <Text style={styles.placeholderText}>Record your voice to predict emotion</Text>
             </View>
           )}
         </View>
 
-         {/* Movie Recommendations Section */}
-         <View style={styles.recommendationContainer}>
-          <Text style={styles.sectionTitle}>Movie Recommendations</Text>
-          
-          {predictedEmotion ? (
+        {/* Book Recommendations */}
+        <View style={styles.recommendationContainer}>
+          <Text style={styles.sectionTitle}>Book Recommendations</Text>
+          {recommendations?.books ? (
             <View style={styles.recommendationContent}>
-              <Text style={styles.recommendationText}>
-                Music recommendations will appear here based on your emotion.
-              </Text>
+              {renderRecommendationList(recommendations.books)}
             </View>
           ) : (
             <View style={styles.placeholderContainer}>
-              <Text style={styles.placeholderText}>
-                Waiting for emotion prediction...
-              </Text>
+              <Text style={styles.placeholderText}>Waiting for emotion prediction...</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Music Recommendations */}
+        <View style={styles.recommendationContainer}>
+          <Text style={styles.sectionTitle}>Music Recommendations</Text>
+          {recommendations?.music ? (
+            <View style={styles.recommendationContent}>
+              {renderRecommendationList(recommendations.music)}
+            </View>
+          ) : (
+            <View style={styles.placeholderContainer}>
+              <Text style={styles.placeholderText}>Waiting for emotion prediction...</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Movie Recommendations */}
+        <View style={styles.recommendationContainer}>
+          <Text style={styles.sectionTitle}>Movie Recommendations</Text>
+          {recommendations?.movies ? (
+            <View style={styles.recommendationContent}>
+              {renderRecommendationList(recommendations.movies)}
+            </View>
+          ) : (
+            <View style={styles.placeholderContainer}>
+              <Text style={styles.placeholderText}>Waiting for emotion prediction...</Text>
             </View>
           )}
         </View>
@@ -134,10 +157,11 @@ export default function SimpleVoiceEmotionScreen() {
   );
 }
 
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#E6E6FA', // Light lavender background
+    backgroundColor: '#E6E6FA',
   },
   scrollContainer: {
     flexGrow: 1,
@@ -146,7 +170,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#4B0082', // Indigo
+    color: '#4B0082',
     textAlign: 'center',
     marginBottom: 20,
     marginTop: 30,
@@ -158,10 +182,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
     shadowColor: '#8A2BE2',
-    shadowOffset: {
-      width: 0,
-      height: 3,
-    },
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.2,
     shadowRadius: 5,
     elevation: 5,
@@ -174,33 +195,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 3,
-    borderColor: '#8A2BE2', // Blue violet
-    shadowColor: '#8A2BE2',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 3,
+    borderColor: '#8A2BE2',
   },
   recordingButton: {
-    borderColor: '#FF0000', // Red border when recording
+    borderColor: '#FF0000',
   },
   recordButtonInner: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#8A2BE2', // Blue violet
+    backgroundColor: '#8A2BE2',
   },
   stopButtonInner: {
     borderRadius: 5,
-    backgroundColor: '#FF0000', // Red when recording
+    backgroundColor: '#FF0000',
   },
   buttonLabel: {
     marginTop: 10,
     fontSize: 16,
-    color: '#4B0082', // Indigo
+    color: '#4B0082',
   },
   emotionContainer: {
     backgroundColor: 'white',
@@ -208,10 +221,7 @@ const styles = StyleSheet.create({
     padding: 20,
     marginBottom: 20,
     shadowColor: '#8A2BE2',
-    shadowOffset: {
-      width: 0,
-      height: 3,
-    },
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.2,
     shadowRadius: 5,
     elevation: 5,
@@ -222,10 +232,7 @@ const styles = StyleSheet.create({
     padding: 20,
     marginBottom: 20,
     shadowColor: '#8A2BE2',
-    shadowOffset: {
-      width: 0,
-      height: 3,
-    },
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.2,
     shadowRadius: 5,
     elevation: 5,
@@ -233,7 +240,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#4B0082', // Indigo
+    color: '#4B0082',
     marginBottom: 15,
   },
   loadingContainer: {
@@ -242,46 +249,57 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 10,
-    color: '#9370DB', // Medium purple
+    color: '#9370DB',
     fontSize: 16,
   },
   emotionResultContainer: {
     alignItems: 'center',
     padding: 20,
-    backgroundColor: '#F8F8FF', // Ghost white
+    backgroundColor: '#F8F8FF',
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#D8BFD8', // Thistle (light purple)
+    borderColor: '#D8BFD8',
   },
   emotionResult: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#8A2BE2', // Blue violet
+    color: '#8A2BE2',
   },
   placeholderContainer: {
     alignItems: 'center',
     padding: 20,
-    backgroundColor: '#F8F8FF', // Ghost white
+    backgroundColor: '#F8F8FF',
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#D8BFD8', // Thistle (light purple)
+    borderColor: '#D8BFD8',
     borderStyle: 'dashed',
   },
   placeholderText: {
     fontSize: 16,
-    color: '#9370DB', // Medium purple
+    color: '#9370DB',
     textAlign: 'center',
   },
   recommendationContent: {
     padding: 15,
-    backgroundColor: '#F8F8FF', // Ghost white
+    backgroundColor: '#F8F8FF',
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#D8BFD8', // Thistle (light purple)
+    borderColor: '#D8BFD8',
   },
-  recommendationText: {
+  recommendationItem: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#EEE6FA',
+    borderRadius: 8,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#D8BFD8',
+    elevation: 2,
+  },
+  recommendationLink: {
     fontSize: 16,
-    color: '#696969', // Dim gray
+    color: '#4B0082',
+    textDecorationLine: 'underline',
     textAlign: 'center',
   },
 });
