@@ -31,15 +31,34 @@ export default function SimpleVoiceEmotionScreen() {
     }
   };
 
-  const stopRecording = () => {
-    setIsRecording(false);
-    setIsPredicting(true);
-    
-    // Simulate emotion prediction (replace with actual API call)
-    setTimeout(() => {
-      const emotions = ['Happy', 'Sad', 'Angry', 'Excited', 'Calm', 'Anxious'];
-      const randomEmotion = emotions[Math.floor(Math.random() * emotions.length)];
-      setPredictedEmotion(randomEmotion);
+  const stopRecording = async () => {
+    try {
+      setIsRecording(false);
+      setIsPredicting(true);
+      const recording = recordingRef.current;
+      if (!recording) return;
+
+      await recording.stopAndUnloadAsync();
+      const uri = recording.getURI();
+      if (!uri) return;
+
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      const audioFile = new File([blob], 'audio.wav', { type: 'audio/wav' });
+
+      const formData = new FormData();
+      formData.append('file', audioFile);
+
+      const result = await axios.post('https://emotune-be.onrender.com/predict', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      setPredictedEmotion(result.data.emotion);
+      setRecommendations(result.data.recommendations);
+    } catch (err) {
+      console.error('Prediction error:', err);
+      alert('srry tryagain');
+    } finally {
       setIsPredicting(false);
     }
   };
