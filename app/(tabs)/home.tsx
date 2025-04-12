@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Image } from 'react-native';
 import { Mic, Search } from 'lucide-react-native';
-import { Route,useRouteNode } from 'expo-router/build/Route';
-import { router, useRouter } from 'expo-router';
 
 const calmingSentences = [
   "Breathe deeply, find your center.",
@@ -31,12 +29,21 @@ export default function HomePage() {
 
   return (
     <View style={styles.container}>
+      <View style={styles.backgroundImages}>
+        <Image
+          source={{ uri: 'https://i.pinimg.com/736x/e7/77/6d/e7776da19220c2437dc91dac4aeef16f.jpg' }} // Replace with your calming left image URL
+          style={styles.sideImageLeft}
+          resizeMode="cover"
+        />
+        <Image
+          source={{ uri: 'https://i.pinimg.com/736x/6a/e0/40/6ae040797ace6082a9e3196d9024359a.jpg' }} // Replace with your calming right image URL
+          style={styles.sideImageRight}
+          resizeMode="cover"
+        />
+      </View>
+
       <View style={styles.header}>
-        <Text style={styles.headerText}>EmoTune</Text> 
-        <TouchableOpacity style={styles.button} onPress={() => router.push('/')}>
-            
-            <Text style={styles.logout}>Logout</Text>
-          </TouchableOpacity>
+        <Text style={styles.title}>EmoTune</Text>
       </View>
 
       <View style={styles.main}>
@@ -54,14 +61,14 @@ export default function HomePage() {
 
       <View style={styles.footer}>
         <View style={styles.buttonRow}>
-          <TouchableOpacity style={styles.button} onPress={() => router.push('/ser')}>
-            <Mic size={20} color="white" />
+          <TouchableOpacity style={styles.button} onPress={() => console.log('Speak clicked')}>
+            <Mic color="white" size={20} />
             <Text style={styles.buttonText}>Speak</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.spectButton} onPress={() => router.push('/report')}>
-            <Search size={20} color="white" />
-            <Text style={styles.buttonText}>Report</Text>
+          <TouchableOpacity style={styles.spectButton} onPress={() => console.log('Spect clicked')}>
+            <Search color="white" size={20} />
+            <Text style={styles.buttonText}>Spect</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -69,124 +76,127 @@ export default function HomePage() {
   );
 }
 
+const { width, height } = Dimensions.get('window');
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    flexDirection: 'column',
-    fontFamily: 'System'
+    backgroundColor: '#ede9fe',
+  },
+  backgroundImages: {
+    ...StyleSheet.absoluteFillObject,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    zIndex: -2
+  },
+  sideImageLeft: {
+    width: 250,
+    height: height,
+  },
+  sideImageRight: {
+    width: 250,
+    height: height,
   },
   header: {
     backgroundColor: '#7e22ce',
     padding: 16,
     alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    
-    shadowOffset: { width: 0, height: 2 }
-    
+    elevation: 4,
+    zIndex: 2
   },
-  headerText: {
+  title: {
     color: 'white',
-    fontSize: 30,
+    fontSize: 28,
     fontWeight: 'bold',
     fontFamily: 'serif'
   },
-  logout:{
-    alignContent:'flex-end',
-    justifyContent:'center'
-  },
   main: {
     flex: 1,
-    alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
-    backgroundColor: '#ede9fe'
+    alignItems: 'center',
+    padding: 16,
   },
   imageFrame: {
-    borderRadius: 100,
     backgroundColor: 'white',
     padding: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
+    borderRadius: 9999,
+    elevation: 5,
     marginBottom: -32,
-    zIndex: 10
+    zIndex: 1
   },
   innerCircle: {
-    borderRadius: 100,
     backgroundColor: '#f3e8ff',
     height: 96,
     width: 96,
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  emoji: {
-    fontSize: 48
-  },
-  sentenceBox: {
-    width: '90%',
-    maxWidth: 450,
-    backgroundColor: 'white',
-    padding: 24,
-    borderRadius: 12,
-    marginTop: 80,
-    borderWidth: 4,
-    borderColor: '#c084fc',
-    position: 'relative',
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
+    borderRadius: 9999,
     justifyContent: 'center',
     alignItems: 'center'
   },
-  glow: {
-    position: 'absolute',
-    top: 0, right: 0, bottom: 0, left: 0,
+  emoji: {
+    fontSize: 36
+  },
+  sentenceBox: {
+    width: width * 0.50,
+    backgroundColor: 'white',
+    padding: 24,
     borderRadius: 12,
+    borderWidth: 4,
+    borderColor: '#c084fc',
+    marginTop: 48,
+    elevation: 4,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  glow: {
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: '#c084fc',
-    opacity: 0.5,
+    borderRadius: 12,
+    opacity: 0.4,
     zIndex: -1,
+    shadowColor: '#c084fc',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
     shadowRadius: 10
   },
   sentenceText: {
-    fontSize: 20,
-    color: '#7e22ce',
+    fontSize: 18,
     fontStyle: 'italic',
+    color: '#7e22ce',
     fontWeight: '300',
-    textAlign: 'center'
+    textAlign: 'center',
+    minHeight: 64
   },
   footer: {
-    backgroundColor: 'white',
     padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#eee'
+    backgroundColor: 'white'
   },
   buttonRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around'
+    justifyContent: 'space-around',
+    width: '100%'
   },
   button: {
     backgroundColor: '#a855f7',
+    borderRadius: 9999,
+    paddingVertical: 10,
+    paddingHorizontal: 24,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 24,
-    borderRadius: 999,
     gap: 8
   },
   spectButton: {
     backgroundColor: '#c084fc',
+    borderRadius: 9999,
+    paddingVertical: 10,
+    paddingHorizontal: 24,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 24,
-    borderRadius: 999,
     gap: 8
   },
   buttonText: {
     color: 'white',
     fontWeight: '500',
-    fontSize: 16
+    fontSize: 16,
+    marginLeft: 8
   }
 });
