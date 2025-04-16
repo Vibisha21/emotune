@@ -115,6 +115,7 @@ const styles = StyleSheet.create({
     padding: 16,
     alignItems: 'center',
     elevation: 4,
+    marginTop: 40,
     zIndex: 2
   },
   title: {
