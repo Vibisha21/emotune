@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -17,6 +17,7 @@ import {
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
 } from 'firebase/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function AuthScreen() {
   const [isLogin, setIsLogin] = useState(true);
@@ -25,18 +26,31 @@ export default function AuthScreen() {
   const [password, setPassword] = useState('');
   const router = useRouter();
 
+  // Function to check if the user is already logged in
+  const checkAuthStatus = async () => {
+    const token = await AsyncStorage.getItem('userToken');
+    if (token) {
+      router.replace('/home'); // Redirect to home page if already logged in
+    }
+  };
+
+  useEffect(() => {
+    checkAuthStatus(); // Check if the user is authenticated when the screen loads
+  }, []);
+
   const handleAuth = async () => {
     if (isLogin) {
       // Login
       try {
         await signInWithEmailAndPassword(auth, email, password);
         alert('Login Successful!');
-        router.replace('/(tabs)/home');
-      }  catch (error) {
+        await AsyncStorage.setItem('userToken', 'your_token_here'); // Store the token
+        router.replace('/home'); // Redirect to the home page after successful login
+      } catch (error) {
         if (error instanceof Error) {
-          console.error(error.message);
+          alert(error.message); // Show the error message
         } else {
-          console.error("An unknown error occurred");
+          console.error('An unknown error occurred');
         }
       }
     } else {
@@ -44,12 +58,12 @@ export default function AuthScreen() {
       try {
         await createUserWithEmailAndPassword(auth, email, password);
         alert('Account created successfully! You can now log in.');
-        setIsLogin(true);
-      }  catch (error) {
+        setIsLogin(true); // Switch to the login screen after sign up
+      } catch (error) {
         if (error instanceof Error) {
-          console.error(error.message);
+          alert(error.message); // Show the error message
         } else {
-          console.error("An unknown error occurred");
+          console.error('An unknown error occurred');
         }
       }
     }
@@ -63,11 +77,11 @@ export default function AuthScreen() {
     try {
       await sendPasswordResetEmail(auth, email);
       alert('Password reset email sent! Check your inbox.');
-    }  catch (error) {
+    } catch (error) {
       if (error instanceof Error) {
-        console.error(error.message);
+        alert(error.message); // Show the error message
       } else {
-        console.error("An unknown error occurred");
+        console.error('An unknown error occurred');
       }
     }
   };

@@ -1,7 +1,31 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
 
 export default function TabLayout() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const token = await AsyncStorage.getItem('userToken');
+      if (!token) {
+        // If no token, redirect to login
+        router.replace('/');
+      } else {
+        setIsAuthenticated(true);
+      }
+    };
+    
+    checkAuth();
+  }, []);
+
+  if (!isAuthenticated) {
+    return null; // Don't render tabs if not authenticated
+  }
+
   return (
     <Tabs 
       screenOptions={({ route }) => ({
@@ -17,7 +41,6 @@ export default function TabLayout() {
       })}
     >
       <Tabs.Screen name="home" options={{ title: 'Home' }} />
-
       <Tabs.Screen name="ser" options={{ title: 'SER' }} />
       <Tabs.Screen name="report" options={{ title: 'Report' }} />
     </Tabs>
