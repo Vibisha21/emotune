@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Image } from 'react-native';
-import { Mic, Search } from 'lucide-react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Image, Alert } from 'react-native';
+import { useRouter } from 'expo-router';
+
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const calmingSentences = [
   "Breathe deeply, find your center.",
@@ -17,6 +19,7 @@ const calmingSentences = [
 
 export default function HomePage() {
   const [currentSentence, setCurrentSentence] = useState(calmingSentences[0]);
+  const router = useRouter(); // Using useRouter to navigate
 
   useEffect(() => {
     const intervalId = setInterval(() => {
@@ -27,16 +30,34 @@ export default function HomePage() {
     return () => clearInterval(intervalId);
   }, []);
 
+  const handleLogout = async () => {
+    try {
+      // Clear user-related data
+      await AsyncStorage.removeItem('userToken'); // Example key
+      await AsyncStorage.removeItem('isLoggedIn');
+
+      // Optional: Clear all storage
+      // await AsyncStorage.clear();
+
+      // Navigate back to index.tsx (login page)
+      router.replace('/'); // Redirect to login screen
+
+    } catch (error) {
+      console.error("Logout error:", error);
+      Alert.alert("Logout Failed", "Something went wrong while logging out.");
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.backgroundImages}>
         <Image
-          source={{ uri: 'https://i.pinimg.com/736x/e7/77/6d/e7776da19220c2437dc91dac4aeef16f.jpg' }} // Replace with your calming left image URL
+          source={{ uri: 'https://i.pinimg.com/736x/e7/77/6d/e7776da19220c2437dc91dac4aeef16f.jpg' }}
           style={styles.sideImageLeft}
           resizeMode="cover"
         />
         <Image
-          source={{ uri: 'https://i.pinimg.com/736x/6a/e0/40/6ae040797ace6082a9e3196d9024359a.jpg' }} // Replace with your calming right image URL
+          source={{ uri: 'https://i.pinimg.com/736x/6a/e0/40/6ae040797ace6082a9e3196d9024359a.jpg' }}
           style={styles.sideImageRight}
           resizeMode="cover"
         />
@@ -60,17 +81,9 @@ export default function HomePage() {
       </View>
 
       <View style={styles.footer}>
-        <View style={styles.buttonRow}>
-          <TouchableOpacity style={styles.button} onPress={() => console.log('Speak clicked')}>
-            <Mic color="white" size={20} />
-            <Text style={styles.buttonText}>Speak</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.spectButton} onPress={() => console.log('Spect clicked')}>
-            <Search color="white" size={20} />
-            <Text style={styles.buttonText}>Spect</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <Text style={styles.logoutText}>Logout</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -102,6 +115,7 @@ const styles = StyleSheet.create({
     padding: 16,
     alignItems: 'center',
     elevation: 4,
+    marginTop: 40,
     zIndex: 2
   },
   title: {
@@ -168,35 +182,18 @@ const styles = StyleSheet.create({
   },
   footer: {
     padding: 16,
-    backgroundColor: 'white'
+    backgroundColor: 'white',
+    alignItems: 'center'
   },
-  buttonRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    width: '100%'
-  },
-  button: {
-    backgroundColor: '#a855f7',
-    borderRadius: 9999,
+  logoutButton: {
+    backgroundColor: '#ef4444',
     paddingVertical: 10,
-    paddingHorizontal: 24,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8
+    paddingHorizontal: 32,
+    borderRadius: 9999
   },
-  spectButton: {
-    backgroundColor: '#c084fc',
-    borderRadius: 9999,
-    paddingVertical: 10,
-    paddingHorizontal: 24,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8
-  },
-  buttonText: {
+  logoutText: {
     color: 'white',
-    fontWeight: '500',
     fontSize: 16,
-    marginLeft: 8
+    fontWeight: '600'
   }
 });
